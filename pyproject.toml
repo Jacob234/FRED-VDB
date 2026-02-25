@@ -1,0 +1,6 @@
+[project]
+name = "fred-vdb"
+version = "0.1.0"
+description = "Semantic search over FRED (Federal Reserve Economic Data) series metadata using local vector embeddings"
+requires-python = ">=3.12"
+dependencies = []
