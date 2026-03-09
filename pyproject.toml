@@ -1,6 +1,24 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
 [project]
 name = "fred-vdb"
 version = "0.1.0"
 description = "Semantic search over FRED (Federal Reserve Economic Data) series metadata using local vector embeddings"
 requires-python = ">=3.12"
-dependencies = []
+dependencies = [
+    "httpx>=0.27",
+    "lancedb>=0.13",
+    "sentence-transformers>=3.0",
+    "tqdm>=4.66",
+    "pyarrow>=16.0",  # Required by lancedb
+    "pandas>=2.0",    # Required by lancedb's to_pandas()
+]
+
+[project.scripts]
+fred-ingest = "fred_search.ingest:main"
+fred-search = "fred_search.search:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["fred_search"]
