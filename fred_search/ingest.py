@@ -154,10 +154,8 @@ def _fetch_series_by_categories(
     try:
         from tqdm import tqdm as _tqdm
         pbar = _tqdm(desc="categories", unit="cat")
-        _tqdm_available = True
     except ImportError:
         pbar = None
-        _tqdm_available = False
 
     # Seed the queue from root's children
     queue: deque[tuple[int, str]] = deque()
@@ -178,12 +176,12 @@ def _fetch_series_by_categories(
         cat_id, cat_name = queue.popleft()
 
         if state.is_category_done(cat_id):
-            if pbar:
+            if pbar is not None:
                 pbar.update(1)
             continue
 
         visited += 1
-        if pbar:
+        if pbar is not None:
             pbar.set_postfix(cat=f"{cat_id}", series=total_new)
 
         # Fetch series in this category
@@ -217,10 +215,10 @@ def _fetch_series_by_categories(
                 "  Could not fetch children for category %d: %s", cat_id, exc
             )
 
-        if pbar:
+        if pbar is not None:
             pbar.update(1)
 
-    if pbar:
+    if pbar is not None:
         pbar.close()
 
     logger.info(
@@ -249,6 +247,67 @@ def _load_and_filter(
     logger.info("  Loaded %d series; applying filters...", len(all_series))
     filtered, _ = apply_filters(all_series, cfg)
     return filtered
+
+
+# ---------------------------------------------------------------------------
+# Phase 4.5: Tag enrichment (optional, API-intensive)
+# ---------------------------------------------------------------------------
+
+def _enrich_tags(
+    client: FREDClient,
+    state: IngestState,
+    filtered: list[FREDSeriesMetadata],
+) -> None:
+    """Fetch per-series tags for filtered series that don't already have tags.
+
+    This is the most API-intensive phase: one call per series. At 85 req/min,
+    ~35K series takes ~7 hours. Resumable — series with tags already in the
+    state DB are skipped automatically.
+    """
+    try:
+        from tqdm import tqdm as _tqdm
+        _tqdm_available = True
+    except ImportError:
+        _tqdm_available = False
+
+    have_tags = state.get_series_ids_with_tags()
+    need_tags = [s for s in filtered if s.series_id not in have_tags]
+
+    logger.info(
+        "Phase 4.5: enriching tags for %d series (%d already have tags)...",
+        len(need_tags), len(filtered) - len(need_tags),
+    )
+
+    if not need_tags:
+        logger.info("  All filtered series already have tags. Skipping.")
+        return
+
+    iterable = (
+        _tqdm(need_tags, desc="tags", unit="series")
+        if _tqdm_available else need_tags
+    )
+    enriched = 0
+    errors = 0
+
+    for series in iterable:
+        try:
+            tags = client.get_series_tags(series.series_id)
+            state.store_tags_batch(series.series_id, tags)
+            series.tags = tags
+            enriched += 1
+        except FREDAPIError as exc:
+            logger.debug("  tags for %s failed: %s", series.series_id, exc)
+            errors += 1
+        except Exception as exc:
+            logger.warning(
+                "  tags for %s unexpected error: %s", series.series_id, exc
+            )
+            errors += 1
+
+    logger.info(
+        "Phase 4.5 done: %d enriched, %d errors, %d skipped (had tags)",
+        enriched, errors, len(filtered) - len(need_tags),
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -334,6 +393,7 @@ def run_ingest(
     data_dir: Path | str = "data",
     filter_cfg: FilterConfig | None = None,
     skip_categories: bool = False,
+    enrich_tags: bool = False,
     dry_run: bool = False,
     force: bool = False,
 ) -> None:
@@ -354,6 +414,10 @@ def run_ingest(
     skip_categories:
         Skip the category tree supplemental walk. Faster, but may miss ~5% of
         series that exist only in the category tree and not in any release.
+    enrich_tags:
+        Fetch per-series tags from the FRED API for every filtered series.
+        This is API-intensive (~1 call per series) but produces much richer
+        embedding text. Resumable — already-fetched tags are skipped.
     dry_run:
         Register releases and categories in state but do not call FRED, embed,
         or write to LanceDB. Useful to preview scope.
@@ -382,19 +446,27 @@ def run_ingest(
             if not skip_categories:
                 _fetch_series_by_categories(client, state, dry_run=dry_run)
 
-        logger.info("State summary after fetch: %s", state.summary())
+            logger.info("State summary after fetch: %s", state.summary())
 
-        if dry_run:
-            logger.info("Dry run complete — skipping embed + LanceDB write.")
-            state.finish_run(run_id)
-            return
+            if dry_run:
+                logger.info("Dry run complete — skipping embed + LanceDB write.")
+                state.finish_run(run_id)
+                return
 
-        filtered = _load_and_filter(state, filter_cfg)
+            filtered = _load_and_filter(state, filter_cfg)
 
-        if not filtered:
-            logger.error("No series survived filtering. Check filter config and state DB.")
-            state.finish_run(run_id)
-            return
+            if not filtered:
+                logger.error("No series survived filtering. Check filter config and state DB.")
+                state.finish_run(run_id)
+                return
+
+            if enrich_tags:
+                _enrich_tags(client, state, filtered)
+                # Reload tags for series that already had them from a prior run
+                have_tags = state.get_series_ids_with_tags()
+                for s in filtered:
+                    if not s.tags and s.series_id in have_tags:
+                        s.tags = state.get_tags_for_series(s.series_id)
 
         texts, embeddings = _embed(filtered)
         _store_lancedb(filtered, texts, embeddings, lance_path)
@@ -442,6 +514,14 @@ def main() -> None:
         help="Skip the FRED category tree supplemental walk",
     )
     parser.add_argument(
+        "--enrich-tags",
+        action="store_true",
+        help=(
+            "Fetch per-series tags for all filtered series (API-intensive; "
+            "~1 call per series). Produces richer embeddings but adds hours."
+        ),
+    )
+    parser.add_argument(
         "--dry-run",
         action="store_true",
         help="Enumerate fetch targets without calling FRED, embedding, or writing",
@@ -476,6 +556,7 @@ def main() -> None:
         data_dir=Path(args.data_dir),
         filter_cfg=FilterConfig(min_popularity=args.min_popularity),
         skip_categories=args.skip_categories,
+        enrich_tags=args.enrich_tags,
         dry_run=args.dry_run,
         force=args.force,
     )

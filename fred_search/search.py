@@ -86,6 +86,7 @@ class FREDSearcher:
         min_popularity: int | None = None,
         active_only: bool = True,
         max_stale_days: int | None = None,
+        popularity_boost: bool = True,
     ) -> list[FREDSearchResult]:
         """
         Semantic search over FRED series metadata.
@@ -113,6 +114,11 @@ class FREDSearcher:
         max_stale_days:
             Maximum age (in days) of the most recent observation. Ignored if
             ``active_only`` is False.
+        popularity_boost:
+            If True (default), re-rank results by
+            ``similarity * (1 + log(popularity + 1) / 10)``.
+            This surfaces well-known headline series (UNRATE, DGS10) that
+            would otherwise be buried by niche variants with richer metadata.
         """
         # Build query vector (normalized, same as ingest)
         query_vec = self._model.encode(
@@ -127,7 +133,11 @@ class FREDSearcher:
             max_stale_days=max_stale_days,
         )
 
-        search_builder = self._table.search(query_vec).limit(top_k)
+        # When popularity boosting, fetch extra candidates so re-ranking
+        # can surface popular series that rank lower by pure similarity.
+        fetch_limit = top_k * 3 if popularity_boost else top_k
+
+        search_builder = self._table.search(query_vec).limit(fetch_limit)
         if filters:
             search_builder = search_builder.where(filters, prefilter=True)
 
@@ -150,6 +160,13 @@ class FREDSearcher:
                 # LanceDB returns numpy arrays for list columns
                 tags = list(raw_tags) if len(raw_tags) > 0 else []
 
+            pop = int(row.get("popularity", 0))
+
+            if popularity_boost:
+                score = cos_sim * (1.0 + math.log(pop + 1) / 10.0)
+            else:
+                score = cos_sim
+
             results.append(
                 FREDSearchResult(
                     series_id=row["series_id"],
@@ -159,14 +176,16 @@ class FREDSearcher:
                     units=row.get("units", ""),
                     seasonal_adjustment=row.get("seasonal_adjustment", ""),
                     tags=tags,
-                    popularity=int(row.get("popularity", 0)),
-                    similarity_score=cos_sim,
+                    popularity=pop,
+                    similarity_score=score,
                     source=row.get("source", ""),
                     observation_end=row.get("observation_end", ""),
                 )
             )
 
-        return results
+        # Re-sort by boosted score and trim to top_k
+        results.sort(key=lambda r: r.similarity_score, reverse=True)
+        return results[:top_k]
 
 
 def _build_where(
@@ -211,6 +230,7 @@ def search_fred(
     min_popularity: int | None = None,
     active_only: bool = True,
     max_stale_days: int | None = None,
+    popularity_boost: bool = True,
 ) -> list[FREDSearchResult]:
     """
     Semantic search over FRED series metadata.
@@ -235,6 +255,8 @@ def search_fred(
         Exclude series whose most recent data is older than ``max_stale_days``.
     max_stale_days:
         Staleness cutoff in days (default 730 when active_only=True).
+    popularity_boost:
+        Re-rank results with a popularity-weighted score (default True).
     """
     searcher = FREDSearcher(data_dir=data_dir)
     return searcher.search(
@@ -244,6 +266,7 @@ def search_fred(
         min_popularity=min_popularity,
         active_only=active_only,
         max_stale_days=max_stale_days,
+        popularity_boost=popularity_boost,
     )
 
 
@@ -300,6 +323,10 @@ def main() -> None:
         help="Include series with old observation_end dates",
     )
     parser.add_argument(
+        "--no-popularity-boost", action="store_true",
+        help="Disable popularity-weighted re-ranking (use pure similarity)",
+    )
+    parser.add_argument(
         "--json", action="store_true",
         help="Output results as JSON",
     )
@@ -317,6 +344,7 @@ def main() -> None:
         frequency=args.frequency,
         min_popularity=args.min_popularity,
         active_only=not args.include_stale,
+        popularity_boost=not args.no_popularity_boost,
     )
 
     if not results:

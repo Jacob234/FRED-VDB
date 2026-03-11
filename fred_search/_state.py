@@ -221,6 +221,21 @@ class IngestState:
         )
         self._conn.commit()
 
+    def get_tags_for_series(self, series_id: str) -> list[str]:
+        """Return all tags stored for a single series."""
+        rows = self._conn.execute(
+            "SELECT tag FROM series_tags WHERE series_id = ?",
+            (series_id,),
+        ).fetchall()
+        return [r["tag"] for r in rows]
+
+    def get_series_ids_with_tags(self) -> set[str]:
+        """Return the set of series IDs that already have at least one tag."""
+        rows = self._conn.execute(
+            "SELECT DISTINCT series_id FROM series_tags"
+        ).fetchall()
+        return {r["series_id"] for r in rows}
+
     def iter_all_series(self) -> Iterator[tuple[dict[str, Any], list[str]]]:
         """
         Yield (raw_series_dict, tags) for every stored series.
@@ -238,12 +253,7 @@ class IngestState:
                 break
             for row in rows:
                 raw = json.loads(row["raw_json"])
-                # Fetch tags for this series
-                tag_rows = self._conn.execute(
-                    "SELECT tag FROM series_tags WHERE series_id = ?",
-                    (row["series_id"],),
-                ).fetchall()
-                tags = [t["tag"] for t in tag_rows]
+                tags = self.get_tags_for_series(row["series_id"])
                 yield raw, tags
             offset += page_size
 
