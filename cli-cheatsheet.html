@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FRED-VDB CLI Cheatsheet</title>
+<style>
+  :root {
+    --bg: #0d1117;
+    --surface: #161b22;
+    --border: #30363d;
+    --text: #e6edf3;
+    --muted: #8b949e;
+    --accent: #58a6ff;
+    --green: #3fb950;
+    --orange: #d29922;
+    --purple: #bc8cff;
+    --red: #f85149;
+    --code-bg: #1c2129;
+    --mono: 'SF Mono', 'Fira Code', 'JetBrains Mono', 'Cascadia Code', Consolas, monospace;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+    padding: 2rem;
+    max-width: 1100px;
+    margin: 0 auto;
+  }
+
+  header {
+    text-align: center;
+    margin-bottom: 2.5rem;
+    padding-bottom: 1.5rem;
+    border-bottom: 1px solid var(--border);
+  }
+
+  header h1 {
+    font-size: 2rem;
+    font-weight: 700;
+    letter-spacing: -0.5px;
+  }
+
+  header h1 span { color: var(--accent); }
+
+  header p {
+    color: var(--muted);
+    margin-top: 0.4rem;
+    font-size: 0.95rem;
+  }
+
+  .grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.5rem;
+  }
+
+  @media (max-width: 800px) {
+    .grid { grid-template-columns: 1fr; }
+    body { padding: 1rem; }
+  }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 1.25rem 1.5rem;
+  }
+
+  .card.full { grid-column: 1 / -1; }
+
+  .card h2 {
+    font-size: 1.1rem;
+    margin-bottom: 0.75rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .card h2 code {
+    font-family: var(--mono);
+    color: var(--green);
+    font-size: 1.05rem;
+    background: none;
+    padding: 0;
+  }
+
+  .card h2 .subtitle {
+    color: var(--muted);
+    font-weight: 400;
+    font-size: 0.85rem;
+  }
+
+  .badge {
+    display: inline-block;
+    font-size: 0.7rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding: 2px 8px;
+    border-radius: 4px;
+    margin-left: auto;
+  }
+
+  .badge-ingest { background: #1f3a2a; color: var(--green); }
+  .badge-search { background: #1a2a40; color: var(--accent); }
+
+  pre {
+    background: var(--code-bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 0.85rem 1rem;
+    overflow-x: auto;
+    font-family: var(--mono);
+    font-size: 0.82rem;
+    line-height: 1.7;
+    margin-bottom: 0.75rem;
+  }
+
+  pre .cmd { color: var(--green); }
+  pre .flag { color: var(--orange); }
+  pre .val { color: var(--purple); }
+  pre .str { color: #a5d6ff; }
+  pre .cmt { color: var(--muted); font-style: italic; }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.82rem;
+  }
+
+  thead th {
+    text-align: left;
+    color: var(--muted);
+    font-weight: 600;
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding: 0.4rem 0.6rem;
+    border-bottom: 1px solid var(--border);
+  }
+
+  tbody td {
+    padding: 0.4rem 0.6rem;
+    border-bottom: 1px solid #21262d;
+    vertical-align: top;
+  }
+
+  tbody tr:last-child td { border-bottom: none; }
+
+  td code {
+    font-family: var(--mono);
+    font-size: 0.8rem;
+    color: var(--orange);
+    background: var(--code-bg);
+    padding: 1px 5px;
+    border-radius: 3px;
+  }
+
+  td .default {
+    color: var(--purple);
+    font-family: var(--mono);
+    font-size: 0.78rem;
+  }
+
+  .note {
+    font-size: 0.82rem;
+    color: var(--muted);
+    margin-top: 0.75rem;
+    padding: 0.5rem 0.75rem;
+    border-left: 3px solid var(--border);
+  }
+
+  .note strong { color: var(--text); }
+
+  .freq-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+    margin-top: 0.5rem;
+  }
+
+  .freq-list span {
+    font-family: var(--mono);
+    font-size: 0.75rem;
+    background: var(--code-bg);
+    border: 1px solid var(--border);
+    padding: 2px 8px;
+    border-radius: 4px;
+    color: var(--purple);
+  }
+
+  footer {
+    text-align: center;
+    margin-top: 2rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--border);
+    color: var(--muted);
+    font-size: 0.78rem;
+  }
+
+  footer code {
+    font-family: var(--mono);
+    color: var(--accent);
+    background: var(--code-bg);
+    padding: 1px 5px;
+    border-radius: 3px;
+    font-size: 0.76rem;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1><span>FRED-VDB</span> CLI Cheatsheet</h1>
+  <p>Semantic search over 840K+ Federal Reserve Economic Data series</p>
+</header>
+
+<div class="grid">
+
+  <!-- INGEST: Examples -->
+  <div class="card">
+    <h2><code>fred-ingest</code> <span class="subtitle">Build the index</span> <span class="badge badge-ingest">ingest</span></h2>
+    <pre><span class="cmt"># Basic ingest (reads $FRED_API_KEY)</span>
+<span class="cmd">fred-ingest</span>
+
+<span class="cmt"># Explicit key + custom dir</span>
+<span class="cmd">fred-ingest</span> <span class="flag">--api-key</span> <span class="val">YOUR_KEY</span> <span class="flag">--data-dir</span> <span class="val">./mydata</span>
+
+<span class="cmt"># Only popular series, skip category walk</span>
+<span class="cmd">fred-ingest</span> <span class="flag">--min-popularity</span> <span class="val">20</span> <span class="flag">--skip-categories</span>
+
+<span class="cmt"># Richer embeddings (slow, ~1 API call/series)</span>
+<span class="cmd">fred-ingest</span> <span class="flag">--enrich-tags</span>
+
+<span class="cmt"># Preview only, no writes</span>
+<span class="cmd">fred-ingest</span> <span class="flag">--dry-run</span>
+
+<span class="cmt"># Wipe state and rebuild</span>
+<span class="cmd">fred-ingest</span> <span class="flag">--force</span>
+
+<span class="cmt"># Verbose logging</span>
+<span class="cmd">fred-ingest</span> <span class="flag">--log-level</span> <span class="val">DEBUG</span></pre>
+    <div class="note"><strong>Resumable:</strong> re-running continues from the last checkpoint. Use <code>--force</code> to start fresh.</div>
+  </div>
+
+  <!-- SEARCH: Examples -->
+  <div class="card">
+    <h2><code>fred-search</code> <span class="subtitle">Query the index</span> <span class="badge badge-search">search</span></h2>
+    <pre><span class="cmt"># Basic search</span>
+<span class="cmd">fred-search</span> <span class="str">"consumer price index"</span>
+
+<span class="cmt"># More results</span>
+<span class="cmd">fred-search</span> <span class="str">"unemployment rate"</span> <span class="flag">--top-k</span> <span class="val">20</span>
+
+<span class="cmt"># Filter by frequency</span>
+<span class="cmd">fred-search</span> <span class="str">"GDP growth"</span> <span class="flag">--frequency</span> <span class="val">Quarterly</span>
+
+<span class="cmt"># Only popular + JSON output</span>
+<span class="cmd">fred-search</span> <span class="str">"fed funds rate"</span> <span class="flag">--min-popularity</span> <span class="val">50</span> <span class="flag">--json</span>
+
+<span class="cmt"># Include stale series</span>
+<span class="cmd">fred-search</span> <span class="str">"M2 money supply"</span> <span class="flag">--include-stale</span>
+
+<span class="cmt"># Pure vector similarity</span>
+<span class="cmd">fred-search</span> <span class="str">"inflation"</span> <span class="flag">--no-popularity-boost</span>
+
+<span class="cmt"># Combine everything</span>
+<span class="cmd">fred-search</span> <span class="str">"labor market"</span> <span class="flag">--frequency</span> <span class="val">Monthly</span> \
+  <span class="flag">--min-popularity</span> <span class="val">30</span> <span class="flag">--top-k</span> <span class="val">5</span> <span class="flag">--json</span></pre>
+  </div>
+
+  <!-- INGEST: Flags table -->
+  <div class="card">
+    <h2>Ingest Flags <span class="badge badge-ingest">ingest</span></h2>
+    <table>
+      <thead><tr><th>Flag</th><th>Default</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><code>--api-key KEY</code></td><td><span class="default">$FRED_API_KEY</span></td><td>FRED API key</td></tr>
+        <tr><td><code>--data-dir PATH</code></td><td><span class="default">data</span></td><td>State DB + LanceDB index location</td></tr>
+        <tr><td><code>--min-popularity N</code></td><td><span class="default">5</span></td><td>Min popularity to keep a series</td></tr>
+        <tr><td><code>--skip-categories</code></td><td><span class="default">off</span></td><td>Skip FRED category tree walk</td></tr>
+        <tr><td><code>--enrich-tags</code></td><td><span class="default">off</span></td><td>Fetch per-series tags (API-intensive)</td></tr>
+        <tr><td><code>--dry-run</code></td><td><span class="default">off</span></td><td>Enumerate only, no writes</td></tr>
+        <tr><td><code>--force</code></td><td><span class="default">off</span></td><td>Delete state and rebuild</td></tr>
+        <tr><td><code>--log-level LEVEL</code></td><td><span class="default">INFO</span></td><td>DEBUG / INFO / WARNING / ERROR</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- SEARCH: Flags table -->
+  <div class="card">
+    <h2>Search Flags <span class="badge badge-search">search</span></h2>
+    <table>
+      <thead><tr><th>Flag</th><th>Default</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><code>query</code></td><td><span class="default">required</span></td><td>Natural language search query</td></tr>
+        <tr><td><code>--top-k N</code></td><td><span class="default">10</span></td><td>Number of results to return</td></tr>
+        <tr><td><code>--data-dir PATH</code></td><td><span class="default">data</span></td><td>Directory with fred_vector_index/</td></tr>
+        <tr><td><code>--frequency FREQ</code></td><td><span class="default">none</span></td><td>Filter by data frequency</td></tr>
+        <tr><td><code>--min-popularity N</code></td><td><span class="default">none</span></td><td>Min FRED popularity score</td></tr>
+        <tr><td><code>--include-stale</code></td><td><span class="default">off</span></td><td>Include series with old end dates</td></tr>
+        <tr><td><code>--no-popularity-boost</code></td><td><span class="default">off</span></td><td>Disable popularity re-ranking</td></tr>
+        <tr><td><code>--json</code></td><td><span class="default">off</span></td><td>Output as JSON</td></tr>
+      </tbody>
+    </table>
+    <div class="note"><strong>Frequency values:</strong>
+      <div class="freq-list">
+        <span>Daily</span><span>Weekly</span><span>Monthly</span><span>Quarterly</span><span>Annual</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Setup -->
+  <div class="card full">
+    <h2>Quick Setup</h2>
+    <pre><span class="cmt"># Install the package</span>
+<span class="cmd">uv</span> pip install -e .
+
+<span class="cmt"># Set your API key</span>
+<span class="cmd">export</span> <span class="flag">FRED_API_KEY</span>=<span class="val">your_key_here</span>
+
+<span class="cmt"># Build the index (resumable)</span>
+<span class="cmd">fred-ingest</span>
+
+<span class="cmt"># Search!</span>
+<span class="cmd">fred-search</span> <span class="str">"consumer price index"</span></pre>
+  </div>
+
+</div>
+
+<footer>
+  FRED-VDB &middot; Powered by <code>all-MiniLM-L6-v2</code> embeddings + <code>LanceDB</code> &middot; Install with <code>uv pip install -e .</code>
+</footer>
+
+</body>
+</html>

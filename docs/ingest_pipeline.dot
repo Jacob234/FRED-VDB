@@ -1,0 +1,275 @@
+digraph ingest_pipeline {
+    rankdir=TB;
+    fontname="Helvetica";
+    node [fontname="Helvetica", fontsize=11];
+    edge [fontname="Helvetica", fontsize=9];
+    compound=true;
+    newrank=true;
+
+    // ─── External Systems ───────────────────────────────
+    subgraph cluster_external {
+        label="External APIs";
+        style=dashed;
+        color=gray60;
+        fontcolor=gray40;
+
+        fred_api [
+            label="FRED API\n(stlouisfed.org)"
+            shape=cylinder
+            style=filled
+            fillcolor="#fff3cd"
+        ];
+        hf [
+            label="HuggingFace\n(model weights)"
+            shape=cylinder
+            style=filled
+            fillcolor="#fff3cd"
+        ];
+    }
+
+    // ─── State DB (SQLite) ──────────────────────────────
+    subgraph cluster_state_db {
+        label="State DB  (fred_ingest_state.db — SQLite)";
+        style=filled;
+        fillcolor="#f0f4ff";
+        color="#4a6fa5";
+        fontcolor="#4a6fa5";
+
+        ingest_runs [
+            label=<
+                <TABLE BORDER="1" CELLBORDER="0" CELLSPACING="0" CELLPADDING="4">
+                <TR><TD BGCOLOR="#4a6fa5"><FONT COLOR="white"><B>ingest_runs</B></FONT></TD></TR>
+                <TR><TD ALIGN="LEFT"><U>run_id</U>  INTEGER PK</TD></TR>
+                <TR><TD ALIGN="LEFT">started_at  TEXT</TD></TR>
+                <TR><TD ALIGN="LEFT">finished_at  TEXT</TD></TR>
+                <TR><TD ALIGN="LEFT">notes  TEXT</TD></TR>
+                </TABLE>
+            >
+            shape=plain
+        ];
+
+        releases [
+            label=<
+                <TABLE BORDER="1" CELLBORDER="0" CELLSPACING="0" CELLPADDING="4">
+                <TR><TD BGCOLOR="#4a6fa5"><FONT COLOR="white"><B>releases</B></FONT></TD></TR>
+                <TR><TD ALIGN="LEFT"><U>release_id</U>  INTEGER PK</TD></TR>
+                <TR><TD ALIGN="LEFT">name  TEXT</TD></TR>
+                <TR><TD ALIGN="LEFT">status  TEXT {pending|done|error}</TD></TR>
+                <TR><TD ALIGN="LEFT">series_count  INTEGER</TD></TR>
+                <TR><TD ALIGN="LEFT">fetched_at  TEXT</TD></TR>
+                <TR><TD ALIGN="LEFT">error_msg  TEXT</TD></TR>
+                </TABLE>
+            >
+            shape=plain
+        ];
+
+        categories [
+            label=<
+                <TABLE BORDER="1" CELLBORDER="0" CELLSPACING="0" CELLPADDING="4">
+                <TR><TD BGCOLOR="#4a6fa5"><FONT COLOR="white"><B>categories</B></FONT></TD></TR>
+                <TR><TD ALIGN="LEFT"><U>category_id</U>  INTEGER PK</TD></TR>
+                <TR><TD ALIGN="LEFT">name  TEXT</TD></TR>
+                <TR><TD ALIGN="LEFT">parent_id  INTEGER FK→categories</TD></TR>
+                <TR><TD ALIGN="LEFT">status  TEXT {pending|done|error}</TD></TR>
+                <TR><TD ALIGN="LEFT">fetched_at  TEXT</TD></TR>
+                <TR><TD ALIGN="LEFT">error_msg  TEXT</TD></TR>
+                </TABLE>
+            >
+            shape=plain
+        ];
+
+        series [
+            label=<
+                <TABLE BORDER="1" CELLBORDER="0" CELLSPACING="0" CELLPADDING="4">
+                <TR><TD BGCOLOR="#4a6fa5"><FONT COLOR="white"><B>series</B></FONT></TD></TR>
+                <TR><TD ALIGN="LEFT"><U>series_id</U>  TEXT PK</TD></TR>
+                <TR><TD ALIGN="LEFT">raw_json  TEXT (full API blob)</TD></TR>
+                <TR><TD ALIGN="LEFT">first_source  TEXT</TD></TR>
+                <TR><TD ALIGN="LEFT">discovered_at  TEXT</TD></TR>
+                </TABLE>
+            >
+            shape=plain
+        ];
+
+        series_tags [
+            label=<
+                <TABLE BORDER="1" CELLBORDER="0" CELLSPACING="0" CELLPADDING="4">
+                <TR><TD BGCOLOR="#4a6fa5"><FONT COLOR="white"><B>series_tags</B></FONT></TD></TR>
+                <TR><TD ALIGN="LEFT"><U>series_id</U>  TEXT PK,FK→series</TD></TR>
+                <TR><TD ALIGN="LEFT"><U>tag</U>  TEXT PK</TD></TR>
+                </TABLE>
+            >
+            shape=plain
+        ];
+
+        // Relationships within state DB
+        categories -> categories [label="parent_id\n(self-ref tree)", style=dashed, color=gray50];
+        series_tags -> series [label="series_id", style=dashed, color=gray50];
+    }
+
+    // ─── Pipeline Phases ────────────────────────────────
+    subgraph cluster_pipeline {
+        label="Ingest Pipeline Phases";
+        style=filled;
+        fillcolor="#f0fff0";
+        color="#2d8a4e";
+        fontcolor="#2d8a4e";
+
+        phase1 [
+            label="Phase 1\nRelease Discovery\n─────────────\nGET /fred/releases\n→ register in state"
+            shape=box
+            style="filled,rounded"
+            fillcolor="#d4edda"
+        ];
+
+        phase2 [
+            label="Phase 2\nSeries via Releases\n─────────────\nGET /fred/release/series\nfor each pending release\n→ INSERT OR IGNORE series"
+            shape=box
+            style="filled,rounded"
+            fillcolor="#d4edda"
+        ];
+
+        phase3 [
+            label="Phase 3\nCategory Tree Walk (BFS)\n─────────────\nGET /fred/category/series\nGET /fred/category/children\n→ INSERT OR IGNORE series\n(catches ~5% missed by releases)"
+            shape=box
+            style="filled,rounded"
+            fillcolor="#d4edda"
+        ];
+
+        phase4 [
+            label="Phase 4\nFilter Pipeline\n─────────────\n1. Drop discontinued\n2. Drop stale (>730 days)\n3. Drop low popularity (<min)\n4. Drop short span (<365 days)\n5. SA/NSA dedup"
+            shape=box
+            style="filled,rounded"
+            fillcolor="#d4edda"
+        ];
+
+        phase45 [
+            label="Phase 4.5\nTag Enrichment (optional)\n─────────────\nGET /fred/series/tags\nper filtered series\n(~1 call/series, resumable)"
+            shape=box
+            style="filled,rounded"
+            fillcolor="#d4edda"
+        ];
+
+        phase5 [
+            label="Phase 5\nEmbedding\n─────────────\nall-MiniLM-L6-v2 (384-dim)\nbatch_size=256\nnormalized → cosine=dot"
+            shape=box
+            style="filled,rounded"
+            fillcolor="#d4edda"
+        ];
+
+        phase6 [
+            label="Phase 6\nLanceDB Write\n─────────────\nOverwrite fred_series table\nwith metadata + vectors"
+            shape=box
+            style="filled,rounded"
+            fillcolor="#d4edda"
+        ];
+
+        phase1 -> phase2 -> phase3 -> phase4 -> phase45 -> phase5 -> phase6;
+    }
+
+    // ─── Vector Index (LanceDB) ─────────────────────────
+    subgraph cluster_lancedb {
+        label="Vector Index  (data/fred_vector_index/ — LanceDB)";
+        style=filled;
+        fillcolor="#fff0f0";
+        color="#a54a4a";
+        fontcolor="#a54a4a";
+
+        fred_series_table [
+            label=<
+                <TABLE BORDER="1" CELLBORDER="0" CELLSPACING="0" CELLPADDING="4">
+                <TR><TD BGCOLOR="#a54a4a"><FONT COLOR="white"><B>fred_series (LanceDB table)</B></FONT></TD></TR>
+                <TR><TD ALIGN="LEFT">series_id  TEXT</TD></TR>
+                <TR><TD ALIGN="LEFT">title  TEXT</TD></TR>
+                <TR><TD ALIGN="LEFT">notes  TEXT (500 char)</TD></TR>
+                <TR><TD ALIGN="LEFT">frequency  TEXT</TD></TR>
+                <TR><TD ALIGN="LEFT">units  TEXT</TD></TR>
+                <TR><TD ALIGN="LEFT">seasonal_adjustment  TEXT</TD></TR>
+                <TR><TD ALIGN="LEFT">observation_start  TEXT</TD></TR>
+                <TR><TD ALIGN="LEFT">observation_end  TEXT</TD></TR>
+                <TR><TD ALIGN="LEFT">popularity  INTEGER</TD></TR>
+                <TR><TD ALIGN="LEFT">last_updated  TEXT</TD></TR>
+                <TR><TD ALIGN="LEFT">source  TEXT</TD></TR>
+                <TR><TD ALIGN="LEFT">embedding_text  TEXT</TD></TR>
+                <TR><TD ALIGN="LEFT">tags  List&lt;TEXT&gt;</TD></TR>
+                <TR><TD ALIGN="LEFT"><B>vector  FLOAT[384]</B></TD></TR>
+                </TABLE>
+            >
+            shape=plain
+        ];
+    }
+
+    // ─── Search Path ────────────────────────────────────
+    subgraph cluster_search {
+        label="Search (query time)";
+        style=filled;
+        fillcolor="#f5f0ff";
+        color="#6a4fa5";
+        fontcolor="#6a4fa5";
+
+        query [
+            label="User Query\n\"trending prices in Memphis\""
+            shape=note
+            style=filled
+            fillcolor="#e8e0f0"
+        ];
+
+        expand [
+            label="Abbreviation\nExpansion"
+            shape=box
+            style="filled,rounded"
+            fillcolor="#e8e0f0"
+        ];
+
+        encode [
+            label="Encode Query\n(same model)"
+            shape=box
+            style="filled,rounded"
+            fillcolor="#e8e0f0"
+        ];
+
+        ann [
+            label="ANN Search\n+ WHERE filters\n(frequency, popularity,\nstale cutoff)"
+            shape=box
+            style="filled,rounded"
+            fillcolor="#e8e0f0"
+        ];
+
+        rerank [
+            label="Popularity Boost\nscore = sim * (1 + log(pop+1)/10)"
+            shape=box
+            style="filled,rounded"
+            fillcolor="#e8e0f0"
+        ];
+
+        results [
+            label="Top-K Results"
+            shape=note
+            style=filled
+            fillcolor="#e8e0f0"
+        ];
+
+        query -> expand -> encode -> ann -> rerank -> results;
+    }
+
+    // ─── Cross-cluster edges ────────────────────────────
+
+    // API → Phases
+    fred_api -> phase1 [lhead=cluster_pipeline, label="HTTP", color="#b8860b", fontcolor="#b8860b"];
+    hf -> phase5 [label="model\nweights", color="#b8860b", fontcolor="#b8860b"];
+
+    // Phases → State DB
+    phase1 -> releases [label="register", color="#4a6fa5", fontcolor="#4a6fa5"];
+    phase2 -> releases [label="mark done/error", color="#4a6fa5", fontcolor="#4a6fa5"];
+    phase2 -> series [label="INSERT OR\nIGNORE", color="#4a6fa5", fontcolor="#4a6fa5"];
+    phase3 -> categories [label="register +\nmark done", color="#4a6fa5", fontcolor="#4a6fa5"];
+    phase3 -> series [label="INSERT OR\nIGNORE", color="#4a6fa5", fontcolor="#4a6fa5"];
+    phase4 -> series [label="read all\n+ filter", color="#4a6fa5", fontcolor="#4a6fa5", dir=back];
+    phase45 -> series_tags [label="store tags", color="#4a6fa5", fontcolor="#4a6fa5"];
+
+    // Phase 6 → LanceDB
+    phase6 -> fred_series_table [label="overwrite", color="#a54a4a", fontcolor="#a54a4a"];
+
+    // Search → LanceDB
+    ann -> fred_series_table [label="vector\nsearch", color="#6a4fa5", fontcolor="#6a4fa5", dir=back];
+}
