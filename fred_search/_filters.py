@@ -25,7 +25,7 @@ logger = logging.getLogger(__name__)
 # Configuration
 # ---------------------------------------------------------------------------
 
-_DEFAULT_MIN_POPULARITY = 5
+_DEFAULT_MIN_POPULARITY = 0
 _DEFAULT_MAX_STALE_DAYS = 730          # 2 years
 _DEFAULT_MIN_OBSERVATION_DAYS = 365    # series with < 1 year of data are noise
 

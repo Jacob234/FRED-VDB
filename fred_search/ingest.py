@@ -68,6 +68,9 @@ def build_embedding_text(series: FREDSeriesMetadata) -> str:
     if series.frequency:
         parts.append(f"Frequency: {series.frequency}")
 
+    if series.category_path:
+        parts.append(f"Category: {series.category_path}")
+
     return " | ".join(p for p in parts if p.strip())
 
 
@@ -246,6 +249,25 @@ def _load_and_filter(
 
     logger.info("  Loaded %d series; applying filters...", len(all_series))
     filtered, _ = apply_filters(all_series, cfg)
+
+    # Enrich with category paths from the state DB
+    logger.info("  Resolving category paths for %d filtered series...", len(filtered))
+    cat_paths = state.build_category_paths()
+    source_map = state.get_series_source_map()
+    enriched = 0
+    for s in filtered:
+        src = source_map.get(s.series_id, "")
+        if src.startswith("category:"):
+            try:
+                cat_id = int(src.split(":", 1)[1])
+                path = cat_paths.get(cat_id, "")
+                if path:
+                    s.category_path = path
+                    enriched += 1
+            except (ValueError, IndexError):
+                pass
+    logger.info("  Category paths resolved for %d / %d series.", enriched, len(filtered))
+
     return filtered
 
 
@@ -372,6 +394,7 @@ def _store_lancedb(
             "popularity": int(s.popularity),
             "last_updated": s.last_updated,
             "source": s.source,
+            "category_path": s.category_path,
             "embedding_text": text,
             "tags": s.tags,               # list[str]; LanceDB stores as List<utf8>
             "vector": vec.tolist(),       # list[float]; 384-dim
@@ -504,9 +527,9 @@ def main() -> None:
     parser.add_argument(
         "--min-popularity",
         type=int,
-        default=5,
+        default=0,
         metavar="N",
-        help="Minimum FRED popularity score to keep a series (default: 5)",
+        help="Minimum FRED popularity score to keep a series (default: 0)",
     )
     parser.add_argument(
         "--skip-categories",
@@ -529,7 +552,15 @@ def main() -> None:
     parser.add_argument(
         "--force",
         action="store_true",
-        help="Delete existing state DB and rebuild from scratch",
+        help=(
+            "DESTRUCTIVE: deletes the state DB (all fetch progress) and "
+            "rebuilds from scratch. Requires confirmation unless --yes is given."
+        ),
+    )
+    parser.add_argument(
+        "--yes", "-y",
+        action="store_true",
+        help="Skip confirmation prompts",
     )
     parser.add_argument(
         "--log-level",
@@ -550,6 +581,19 @@ def main() -> None:
             "FRED API key is required. "
             "Pass --api-key or set the FRED_API_KEY environment variable."
         )
+
+    if args.force and not args.yes:
+        state_path = Path(args.data_dir) / "fred_ingest_state.db"
+        if state_path.exists():
+            size_mb = state_path.stat().st_size / (1024 * 1024)
+            answer = input(
+                f"--force will DELETE {state_path} ({size_mb:.1f} MB) "
+                f"and re-fetch all series from the FRED API.\n"
+                f"Continue? [y/N] "
+            )
+            if answer.lower() not in ("y", "yes"):
+                print("Aborted.")
+                return
 
     run_ingest(
         api_key=args.api_key,

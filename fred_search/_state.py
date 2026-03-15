@@ -269,6 +269,41 @@ class IngestState:
         )
 
     # ------------------------------------------------------------------
+    # Category path resolution
+    # ------------------------------------------------------------------
+
+    def build_category_paths(self) -> dict[int, str]:
+        """Precompute category_id → full path string for every category.
+
+        Returns a dict like {28643: "U.S. Regional Data > States > Michigan > Counties > Montmorency County, MI"}.
+        Walks parent_id chains in Python (fast — only ~5K nodes).
+        """
+        rows = self._conn.execute(
+            "SELECT category_id, name, parent_id FROM categories"
+        ).fetchall()
+        parent_map: dict[int, tuple[str, int | None]] = {
+            r["category_id"]: (r["name"], r["parent_id"]) for r in rows
+        }
+
+        paths: dict[int, str] = {}
+        for cat_id in parent_map:
+            parts: list[str] = []
+            cur: int | None = cat_id
+            while cur is not None and cur in parent_map:
+                name, parent = parent_map[cur]
+                parts.append(name)
+                cur = parent
+            paths[cat_id] = " > ".join(reversed(parts))
+        return paths
+
+    def get_series_source_map(self) -> dict[str, str]:
+        """Return {series_id: first_source} for all series."""
+        rows = self._conn.execute(
+            "SELECT series_id, first_source FROM series WHERE first_source IS NOT NULL"
+        ).fetchall()
+        return {r["series_id"]: r["first_source"] for r in rows}
+
+    # ------------------------------------------------------------------
     # Diagnostics
     # ------------------------------------------------------------------
 

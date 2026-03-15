@@ -25,6 +25,7 @@ import os
 from pathlib import Path
 from typing import Any
 
+from fred_search._abbreviations import expand_query
 from fred_search.models import FREDSearchResult
 
 logger = logging.getLogger(__name__)
@@ -120,9 +121,14 @@ class FREDSearcher:
             This surfaces well-known headline series (UNRATE, DGS10) that
             would otherwise be buried by niche variants with richer metadata.
         """
+        # Expand finance abbreviations before embedding
+        expanded = expand_query(query)
+        if expanded != query:
+            logger.info("Query expanded: %r → %r", query, expanded)
+
         # Build query vector (normalized, same as ingest)
         query_vec = self._model.encode(
-            [query], normalize_embeddings=True
+            [expanded], normalize_embeddings=True
         )[0].tolist()
 
         # Compose LanceDB WHERE clause
@@ -180,6 +186,7 @@ class FREDSearcher:
                     similarity_score=score,
                     source=row.get("source", ""),
                     observation_end=row.get("observation_end", ""),
+                    category_path=row.get("category_path", ""),
                 )
             )
 
@@ -286,6 +293,8 @@ def _format_results(results: list[FREDSearchResult], as_json: bool) -> str:
             f"     Frequency: {r.frequency} | Units: {r.units} | "
             f"Popularity: {r.popularity} | Data through: {r.observation_end}"
         )
+        if r.category_path:
+            lines.append(f"     Category: {r.category_path}")
         if r.tags:
             lines.append(f"     Tags: {', '.join(r.tags[:8])}")
         if r.notes:

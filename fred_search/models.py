@@ -27,6 +27,7 @@ class FREDSeriesMetadata:
     is_discontinued: bool = False
     tags: list[str] = field(default_factory=list)
     source: str = ""        # Originating release name or category path
+    category_path: str = "" # e.g. "Prices > Consumer Price Indexes > Special Indexes"
 
     @classmethod
     def from_api_response(cls, raw: dict[str, Any], source: str = "") -> "FREDSeriesMetadata":
@@ -92,6 +93,7 @@ class FREDSearchResult:
     similarity_score: float  # Cosine distance from LanceDB (lower = more similar)
     source: str
     observation_end: str    # Most recent data point date
+    category_path: str = "" # e.g. "Prices > Consumer Price Indexes > Special Indexes"
 
     def __repr__(self) -> str:
         return (
@@ -112,4 +114,5 @@ class FREDSearchResult:
             "similarity_score": self.similarity_score,
             "source": self.source,
             "observation_end": self.observation_end,
+            "category_path": self.category_path,
         }
