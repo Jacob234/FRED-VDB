@@ -26,12 +26,14 @@ Quick start
       print(r.series_id, r.similarity_score, r.title)
 """
 
+from fred_search.fetch import fetch_series
 from fred_search.ingest import run_ingest
 from fred_search.models import FREDSearchResult, FREDSeriesMetadata
 from fred_search.search import FREDSearcher, search_fred
 
 __all__ = [
     "search_fred",
+    "fetch_series",
     "FREDSearcher",
     "run_ingest",
     "FREDSeriesMetadata",
