@@ -19,12 +19,14 @@ dependencies = [
 [project.scripts]
 fred-ingest = "fred_search.ingest:main"
 fred-search = "fred_search.search:main"
+fred-fetch = "fred_search.fetch:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["fred_search"]
 
 [dependency-groups]
 dev = [
+    "marimo>=0.20.4",
     "pytest>=9.0.2",
 ]
 
