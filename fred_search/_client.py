@@ -191,6 +191,43 @@ class FREDClient:
             order_by="series_id",
         )
 
+    def get_series_observations(
+        self,
+        series_id: str,
+        observation_start: str | None = None,
+        observation_end: str | None = None,
+    ) -> list[dict[str, str]]:
+        """Fetch observation data (date/value pairs) for a single series.
+
+        Parameters
+        ----------
+        series_id:
+            The FRED series identifier (e.g. "UNRATE").
+        observation_start:
+            Start date in YYYY-MM-DD format. Defaults to FRED's earliest.
+        observation_end:
+            End date in YYYY-MM-DD format. Defaults to most recent.
+
+        Returns
+        -------
+        List of ``{"date": "YYYY-MM-DD", "value": "..."}`` dicts.
+        FRED returns values as strings; ``"."`` means missing/unavailable.
+        """
+        params: dict[str, Any] = {"series_id": series_id}
+        if observation_start:
+            params["observation_start"] = observation_start
+        if observation_end:
+            params["observation_end"] = observation_end
+
+        observations: list[dict[str, str]] = []
+        for obs in self._paginate(
+            "series/observations", "observations", **params
+        ):
+            observations.append(
+                {"date": obs["date"], "value": obs["value"]}
+            )
+        return observations
+
     def get_series_tags(self, series_id: str) -> list[str]:
         """Fetch the tag list for a single series.
 
