@@ -22,3 +22,14 @@ fred-search = "fred_search.search:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["fred_search"]
+
+[dependency-groups]
+dev = [
+    "pytest>=9.0.2",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = [
+    "integration: tests requiring the built LanceDB index and embedding model",
+]
