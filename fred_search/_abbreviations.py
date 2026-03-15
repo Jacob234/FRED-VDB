@@ -180,14 +180,18 @@ def expand_query(query: str) -> str:
     # --- Unconditional expansions ---
     for abbrev, expansion in EXPANSIONS.items():
         # Match abbreviation as a whole word, case-insensitive.
-        # Use a function replacement to preserve the original case of the match.
-        pattern = re.compile(r"\b" + re.escape(abbrev) + r"\b", re.IGNORECASE)
+        # Negative lookahead prevents double-expansion if already followed by " (".
+        pattern = re.compile(
+            r"\b" + re.escape(abbrev) + r"\b(?!\s*\()", re.IGNORECASE
+        )
         if pattern.search(result):
             result = pattern.sub(rf"\g<0> ({expansion})", result)
 
     # --- Conditional expansions ---
     for abbrev, conf in CONDITIONAL_EXPANSIONS.items():
-        pattern = re.compile(r"\b" + re.escape(abbrev) + r"\b", re.IGNORECASE)
+        pattern = re.compile(
+            r"\b" + re.escape(abbrev) + r"\b(?!\s*\()", re.IGNORECASE
+        )
         if not pattern.search(result):
             continue
         # Check if any context word appears in the query
