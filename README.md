@@ -82,6 +82,25 @@ Expanded: "CRE (commercial real estate) credit stress"
 
 Conditional expansions handle ambiguous abbreviations based on context words in the query (e.g., "MF" → "multifamily" only when housing-related terms are present).
 
+<details>
+<summary>Full abbreviation list (80+ terms)</summary>
+
+| Category | Abbreviations |
+|---|---|
+| **Interest Rates & Monetary Policy** | FFR, EFFR, SOFR, LIBOR, IOER, OBFR, TIPS, UST, YC, QE, QT, FOMC |
+| **Fixed Income & Credit** | HY, IG, OAS, MBS, CMBS, RMBS, ABS, CLO, CDO, CDS, GSE, TED |
+| **Real Estate** | CRE, REIT, ARM, FRM, LTV, HPI |
+| **Banking** | SLOOS, NPL, NIM, FDIC, FHLB |
+| **Economic Indicators** | GDP, GNP, GDI, CPI, PPI, PCE, PCEPI, PMI, ISM, NFP, JOLTS, LEI, ECI, M1, M2 |
+| **Labor Market** | LFPR, EPOP, AHE, QCEW |
+| **Financial Conditions & Stress** | NFCI, STLFSI, KCFSI, CFNAI, VIX |
+| **Housing Agencies** | FHFA, FHA, NAHB |
+| **Markets & Trade** | FX, FDI, BOP, DXY, REER, ETF, S&P |
+| **Government / Fiscal** | DSPIC, SNAP, TANF |
+| **Conditional** | MF (multifamily, in housing context), IP (industrial production), CU (capacity utilization), SFR (single-family rental), EM (emerging markets) |
+
+</details>
+
 ## Setup
 
 ```bash
