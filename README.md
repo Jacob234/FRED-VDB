@@ -240,6 +240,20 @@ The skill handles:
 3. Running `fred-fetch` to pull observation data
 4. Presenting the data with appropriate context
 
+## Evaluation
+
+A [marimo notebook](notebooks/search_technique_comparison.py) compares FRED-VDB against 6 other retrieval techniques on a suite of conceptual queries:
+
+- **FRED API search** (baseline keyword/stemming)
+- **TF-IDF** with cosine similarity
+- **BM25** (Okapi BM25 ranking)
+- **Hybrid** (vector + BM25 fusion)
+- **Cross-encoder reranking** (two-stage retrieve-then-rerank)
+- **Query expansion** (abbreviation-aware embedding)
+- **Popularity-boosted** (the default FRED-VDB scoring)
+
+Run it locally with `marimo edit notebooks/search_technique_comparison.py` to explore results interactively.
+
 ## Architecture
 
 ### Ingest Pipeline (6 phases)
