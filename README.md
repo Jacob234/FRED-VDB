@@ -224,6 +224,22 @@ for series_id, observations in data.items():
     print(observations[-1])  # most recent: {"date": "...", "value": 4.2}
 ```
 
+## Agent / Claude Code Integration
+
+This repo ships with a Claude Code skill at `.claude/commands/fred-lookup.md` that teaches an AI agent the search → rerank → fetch workflow. When working in a Claude Code session within this project, the skill auto-activates when the agent encounters questions needing U.S. economic data.
+
+To make it available globally (across all projects), copy it to your user-level commands:
+
+```bash
+cp .claude/commands/fred-lookup.md ~/.claude/commands/
+```
+
+The skill handles:
+1. Running `fred-search` with a natural language query
+2. LLM reranking of results to select the best series
+3. Running `fred-fetch` to pull observation data
+4. Presenting the data with appropriate context
+
 ## Architecture
 
 ### Ingest Pipeline (6 phases)
