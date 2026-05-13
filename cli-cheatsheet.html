@@ -108,6 +108,7 @@
 
   .badge-ingest { background: #1f3a2a; color: var(--green); }
   .badge-search { background: #1a2a40; color: var(--accent); }
+  .badge-fetch { background: #2a1f3a; color: var(--purple); }
 
   pre {
     background: var(--code-bg);
@@ -274,6 +275,33 @@
   <span class="flag">--min-popularity</span> <span class="val">30</span> <span class="flag">--top-k</span> <span class="val">5</span> <span class="flag">--json</span></pre>
   </div>
 
+  <!-- FETCH: Examples -->
+  <div class="card full">
+    <h2><code>fred-fetch</code> <span class="subtitle">Get observation data</span> <span class="badge badge-fetch">fetch</span></h2>
+    <pre><span class="cmt"># Fetch last 12 observations</span>
+<span class="cmd">fred-fetch</span> <span class="val">UNRATE</span> <span class="flag">--last</span> <span class="val">12</span>
+
+<span class="cmt"># Multiple series, date range</span>
+<span class="cmd">fred-fetch</span> <span class="val">UNRATE</span> <span class="val">DGS10</span> <span class="flag">--start</span> <span class="val">2020-01-01</span>
+
+<span class="cmt"># JSON output for programmatic use</span>
+<span class="cmd">fred-fetch</span> <span class="val">CPIAUCSL</span> <span class="flag">--last</span> <span class="val">24</span> <span class="flag">--json</span>
+
+<span class="cmt"># Specific date window</span>
+<span class="cmd">fred-fetch</span> <span class="val">PAYEMS</span> <span class="flag">--start</span> <span class="val">2023-01-01</span> <span class="flag">--end</span> <span class="val">2024-12-31</span></pre>
+    <table>
+      <thead><tr><th>Flag</th><th>Default</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><code>SERIES_ID</code></td><td><span class="default">required</span></td><td>One or more FRED series identifiers</td></tr>
+        <tr><td><code>--start YYYY-MM-DD</code></td><td><span class="default">5y ago</span></td><td>Observation start date</td></tr>
+        <tr><td><code>--end YYYY-MM-DD</code></td><td><span class="default">today</span></td><td>Observation end date</td></tr>
+        <tr><td><code>--last N</code></td><td><span class="default">none</span></td><td>Return only the last N observations</td></tr>
+        <tr><td><code>--api-key KEY</code></td><td><span class="default">$FRED_API_KEY</span></td><td>FRED API key</td></tr>
+        <tr><td><code>--json</code></td><td><span class="default">off</span></td><td>Output as JSON</td></tr>
+      </tbody>
+    </table>
+  </div>
+
   <!-- INGEST: Flags table -->
   <div class="card">
     <h2>Ingest Flags <span class="badge badge-ingest">ingest</span></h2>
@@ -327,8 +355,11 @@
 <span class="cmt"># Build the index (resumable)</span>
 <span class="cmd">fred-ingest</span>
 
-<span class="cmt"># Search!</span>
-<span class="cmd">fred-search</span> <span class="str">"consumer price index"</span></pre>
+<span class="cmt"># Search</span>
+<span class="cmd">fred-search</span> <span class="str">"consumer price index"</span>
+
+<span class="cmt"># Fetch data for a series you found</span>
+<span class="cmd">fred-fetch</span> <span class="val">CPIAUCSL</span> <span class="flag">--last</span> <span class="val">12</span> <span class="flag">--json</span></pre>
   </div>
 
 </div>

@@ -1,10 +1,11 @@
 """
 fred_search — semantic search over FRED series metadata.
 
-Phases
-------
+Modules
+-------
   ingest.py   — fetch + filter + embed + store in LanceDB
   search.py   — natural language query interface
+  fetch.py    — retrieve observation data for discovered series
   models.py   — FREDSeriesMetadata and FREDSearchResult dataclasses
   _filters.py — dedup / scope / recency filtering logic
   _client.py  — FRED API client with rate limiting and retries
@@ -18,12 +19,14 @@ Quick start
   # 2. Search
   fred-search "indicators of commercial real estate credit stress"
 
+  # 3. Fetch observation data for series of interest
+  fred-fetch UNRATE DGS10 --last 12 --json
+
   # Or use the library API:
-  from fred_search import search_fred, FREDSearcher
+  from fred_search import search_fred, fetch_series
 
   results = search_fred("inflation expectations", top_k=5)
-  for r in results:
-      print(r.series_id, r.similarity_score, r.title)
+  data = fetch_series([r.series_id for r in results[:3]], last=12)
 """
 
 from fred_search.fetch import fetch_series

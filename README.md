@@ -150,10 +150,42 @@ fred-search "inflation" --no-popularity-boost
 | `--no-popularity-boost` | off | Disable popularity re-ranking (pure vector similarity) |
 | `--json` | off | Output as JSON |
 
+### `fred-fetch` — Retrieve Observation Data
+
+Once you've found series IDs via search, fetch the actual time series data from the FRED API.
+
+```bash
+fred-fetch UNRATE DGS10 --start 2020-01-01
+fred-fetch CPIAUCSL --last 24
+fred-fetch PAYEMS --start 2023-01-01 --end 2024-12-31 --json
+```
+
+```
+$ fred-fetch UNRATE --last 6
+
+UNRATE  (6 observations)
+----------------------------------------
+  2025-09-01        4.4000
+  2025-10-01             .
+  2025-11-01        4.5000
+  2025-12-01        4.4000
+  2026-01-01        4.3000
+  2026-02-01        4.4000
+```
+
+| Flag | Default | Description |
+|---|---|---|
+| `SERIES_ID` | *(required)* | One or more FRED series identifiers |
+| `--start YYYY-MM-DD` | 5 years ago | Observation start date |
+| `--end YYYY-MM-DD` | today | Observation end date |
+| `--last N` | none | Return only the last N observations per series |
+| `--api-key KEY` | `$FRED_API_KEY` | FRED API key |
+| `--json` | off | Output as JSON |
+
 ### Python API
 
 ```python
-from fred_search import search_fred, FREDSearcher
+from fred_search import search_fred, fetch_series, FREDSearcher
 
 # One-off query (loads model each time)
 results = search_fred("indicators of CRE credit stress", top_k=5)
@@ -165,6 +197,12 @@ results = searcher.search("labor market slack", min_popularity=30)
 
 for r in results:
     print(r.series_id, r.title, f"(score={r.similarity_score:.3f})")
+
+# Fetch observation data for selected series
+data = fetch_series(["UNRATE", "DGS10"], start="2020-01-01")
+for series_id, observations in data.items():
+    print(series_id, len(observations), "observations")
+    print(observations[-1])  # most recent: {"date": "...", "value": 4.2}
 ```
 
 ## Architecture
@@ -230,6 +268,7 @@ fred_search/
 ├── __init__.py           # Public API exports
 ├── ingest.py             # 6-phase ingest pipeline + CLI
 ├── search.py             # Vector search interface + CLI
+├── fetch.py              # Observation data retrieval + CLI
 ├── models.py             # FREDSeriesMetadata, FREDSearchResult
 ├── _client.py            # FRED REST client (rate-limited, retrying)
 ├── _filters.py           # Filter pipeline (discontinued, stale, dedup)
