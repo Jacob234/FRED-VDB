@@ -12,12 +12,16 @@ regex = '''(?i)fred[_-]?api[_-]?key["'\s:=]+([a-f0-9]{32})\b'''
 keywords = ["fred_api_key", "FRED_API_KEY"]
 
 [allowlist]
-description = "Known false-positive paths and historical leaked-and-rotated key"
+description = "Known false-positive paths and historical leak commit"
 paths = [
   '''uv\.lock''',
   '''\.gitignore''',
   '''\.gitleaks\.toml''',
 ]
-# The literal value below was leaked in commit 2eed6b5 and has since been
-# rotated. Allowlisting it stops history scans from flagging dead keys.
-regexes = ['''f05211dbc459725b6b8cb2bdd7262154''']
+# The commit below leaked a FRED API key into .planning/codebase/CONCERNS.md.
+# The key has been rotated; allowlisting the commit (not the literal value)
+# keeps `gitleaks detect` history scans clean without re-inlining the dead
+# value into HEAD.
+commits = [
+  "2eed6b5509c62042c769b71f0bd7ba073a982d8a",
+]
