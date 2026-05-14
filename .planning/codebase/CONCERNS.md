@@ -53,7 +53,7 @@
 ## Security Considerations
 
 **API key in `.env` file (with real value):**
-- Risk: The `.env` file at the repository root contains a real FRED API key (`f05211dbc459725b6b8cb2bdd7262154`). While `.env` is gitignored, the file is present on disk. If the repo is ever shared, zipped, or backed up carelessly, the key leaks.
+- Risk: The `.env` file at the repository root contains a real FRED API key (`<REDACTED>` — the literal value was previously committed here and is preserved in commit `2eed6b5` history; key has been rotated). While `.env` is gitignored, the file is present on disk. If the repo is ever shared, zipped, or backed up carelessly, the key leaks — exactly what happened when this concerns doc was first authored.
 - Files: `.env` (line 5)
 - Current mitigation: `.gitignore` excludes `.env` and `.env.*`. The `.env.example` correctly contains a placeholder.
 - Recommendations: Rotate the API key. Consider using a system keyring or environment variable directly instead of a dotfile. FRED API keys are free and low-risk, but the pattern sets a bad precedent for higher-stakes secrets.
