@@ -27,6 +27,7 @@ packages = ["fred_search"]
 [dependency-groups]
 dev = [
     "marimo>=0.20.4",
+    "pre-commit>=4.0",
     "pytest>=9.0.2",
 ]
 

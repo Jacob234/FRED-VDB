@@ -1,0 +1,8 @@
+# Pre-commit hooks for FRED-VDB.
+# Install locally with:  uv run pre-commit install
+# Update pins with:      uv run pre-commit autoupdate
+repos:
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.21.2
+    hooks:
+      - id: gitleaks

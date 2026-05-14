@@ -120,6 +120,20 @@ fred-search "inflation expectations vs realized inflation"
 
 Requires Python >= 3.12. Uses `uv` for package management.
 
+### Pre-commit hooks (recommended)
+
+This repo runs [gitleaks](https://github.com/gitleaks/gitleaks) on every commit
+to catch accidentally-committed secrets (especially FRED API keys). Enable
+locally with:
+
+```bash
+uv sync                       # installs pre-commit into the dev venv
+uv run pre-commit install     # wires the hook into .git/hooks
+```
+
+Custom rules live in `.gitleaks.toml`. Bump pinned hook versions with
+`uv run pre-commit autoupdate`.
+
 ## CLI Reference
 
 ### `fred-ingest` — Build the Vector Index

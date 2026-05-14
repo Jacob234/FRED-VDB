@@ -1,0 +1,23 @@
+# gitleaks configuration for FRED-VDB.
+# Extends the upstream default rule set with a FRED-specific detector,
+# and allowlists known false-positive paths plus the historical leaked
+# (and rotated) key string so old commits don't block fresh ones.
+[extend]
+useDefault = true
+
+[[rules]]
+id = "fred-api-key"
+description = "FRED API key (32-char lowercase hex assigned to FRED_API_KEY)"
+regex = '''(?i)fred[_-]?api[_-]?key["'\s:=]+([a-f0-9]{32})\b'''
+keywords = ["fred_api_key", "FRED_API_KEY"]
+
+[allowlist]
+description = "Known false-positive paths and historical leaked-and-rotated key"
+paths = [
+  '''uv\.lock''',
+  '''\.gitignore''',
+  '''\.gitleaks\.toml''',
+]
+# The literal value below was leaked in commit 2eed6b5 and has since been
+# rotated. Allowlisting it stops history scans from flagging dead keys.
+regexes = ['''f05211dbc459725b6b8cb2bdd7262154''']
