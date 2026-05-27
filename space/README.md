@@ -9,7 +9,7 @@ python_version: "3.12"
 app_file: app.py
 pinned: false
 license: mit
-short_description: Natural-language semantic search over 33K+ curated FRED economic data series
+short_description: Semantic search over 33K+ curated FRED economic series
 ---
 
 # FRED-VDB — Semantic Search over FRED
