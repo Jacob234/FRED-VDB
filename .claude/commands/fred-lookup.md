@@ -4,7 +4,7 @@ description: Look up U.S. economic and financial data from FRED (Federal Reserve
 
 # FRED Data Lookup
 
-You have access to a semantic search index of ~840K FRED time series and a fetch tool to pull observation data. Use this two-step workflow to answer questions requiring U.S. economic/financial data.
+You have access to a semantic search index of 33K+ curated FRED time series (filtered from FRED's full ~840K-series catalog) and a fetch tool to pull observation data. Use this two-step workflow to answer questions requiring U.S. economic/financial data.
 
 ## Step 1: Search for relevant series
 

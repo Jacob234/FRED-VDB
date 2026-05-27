@@ -1,6 +1,6 @@
 # FRED-VDB
 
-Semantic search over FRED (Federal Reserve Economic Data) series metadata. Ask natural language questions, get back the most relevant series from ~840K options.
+Semantic search over FRED (Federal Reserve Economic Data) series metadata. Ask natural language questions, get back the most relevant series from a curated index of 33K+ series (filtered from FRED's full ~840K-series catalog).
 
 **🤗 [Try the live demo on Hugging Face Spaces](https://huggingface.co/spaces/Jacob235/fred-vdb)** — no install required. Deployment lives in [`space/`](space/) (see [`space/DEPLOY.md`](space/DEPLOY.md)).
 

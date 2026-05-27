@@ -99,8 +99,8 @@ EXAMPLES = [
 with gr.Blocks(title="FRED-VDB — Semantic Search over FRED") as demo:
     gr.Markdown(
         "# FRED-VDB\n"
-        "Semantic search over ~840K FRED economic series. Describe the data "
-        "you want in plain language — matching is by *meaning*, not keywords."
+        "Semantic search over 33,000+ curated FRED economic series. Describe the "
+        "data you want in plain language — matching is by *meaning*, not keywords."
     )
     with gr.Row():
         query_box = gr.Textbox(
@@ -121,11 +121,47 @@ with gr.Blocks(title="FRED-VDB — Semantic Search over FRED") as demo:
 
     gr.Examples(EXAMPLES, inputs=[query_box, freq_dropdown, boost_toggle])
 
+    # The agent-facing API surface. Both UI triggers run the same handler, but
+    # only the button-click is exposed as the public `/search` endpoint; the
+    # textbox-submit is marked private so Enter-to-search still works in the
+    # browser without minting a confusing duplicate endpoint in the API schema
+    # that agents read via /gradio_api/info. (Gradio 6: use api_visibility, not
+    # the removed show_api / api_name=False.)
+    #
+    # `api_description` is the text an LLM agent sees when deciding whether and
+    # how to call this tool. TODO(you): refine the wording below — the draft is
+    # functional, but you know best how you want agents to understand and chain
+    # FRED-VDB. Keep the key facts: it returns series_ids, and series_id is the
+    # handle for fetching the actual data.
     search_btn.click(
-        search, inputs=[query_box, freq_dropdown, boost_toggle], outputs=output
+        search,
+        inputs=[query_box, freq_dropdown, boost_toggle],
+        outputs=output,
+        api_name="search",
+        api_description=(
+            "Semantic search over 33,000+ curated FRED (Federal Reserve Economic "
+            "Data) time series — a high-signal subset filtered from FRED's full "
+            "~840K-series catalog. Given a natural-language description of the data you want "
+            "(e.g. 'labor market slack' or 'commercial real estate credit stress'), "
+            "returns the top 10 matching series ranked by meaning (not keywords), "
+            "formatted as Markdown. Each result includes the FRED series_id "
+            "(e.g. UNRATE), title, similarity score, frequency, units, and popularity. "
+            "Use the series_id to fetch the actual data via the FRED API or at "
+            "https://fred.stlouisfed.org/series/{series_id}. Optional args: filter by "
+            "`frequency` (Any/Daily/Weekly/Monthly/Quarterly/Annual) and toggle "
+            "`popularity_boost` to favor well-known headline series. The ranking "
+            "is a similarity heuristic, not an authoritative answer — the best "
+            "match for your intent is not always result #1. Read the titles and "
+            "metadata across the top 10 and use your own judgment to pick the "
+            "series that actually fits the request (or refine the query and "
+            "search again)."
+        ),
     )
     query_box.submit(
-        search, inputs=[query_box, freq_dropdown, boost_toggle], outputs=output
+        search,
+        inputs=[query_box, freq_dropdown, boost_toggle],
+        outputs=output,
+        api_visibility="private",
     )
 
 if __name__ == "__main__":
